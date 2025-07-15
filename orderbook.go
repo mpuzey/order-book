@@ -34,6 +34,16 @@ func (ob *OrderBook) AddOrder(order Order) {
 	ob.lastUpdateID++
 }
 
+func (ob *OrderBook) DeleteOrder(order Order) {
+	ob.mu.Lock()
+	defer ob.mu.Unlock()
+	if order.Side == Buy {
+		delete(ob.Bids, order.ID)
+	} else {
+		delete(ob.Asks, order.ID)
+	}
+}
+
 func (ob *OrderBook) CancelOrder(orderID int) {
 	ob.mu.Lock()
 	defer ob.mu.Lock()

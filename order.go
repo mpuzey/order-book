@@ -34,7 +34,7 @@ type Order2 struct {
 
 func OrderRequestHandler(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method != http.MethodPost {
+	if r.Method != http.MethodPost && r.Method != http.MethodDelete {
 		http.Error(w, "Invalid Method", http.StatusMethodNotAllowed)
 	}
 
@@ -48,7 +48,11 @@ func OrderRequestHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, errStr, http.StatusBadRequest)
 	}
 
-	orderBook.AddOrder(req)
+	if r.Method == http.MethodDelete {
+		orderBook.DeleteOrder(req)
+	} else {
+		orderBook.AddOrder(req)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(&OrderResponse{
