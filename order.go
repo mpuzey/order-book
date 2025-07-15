@@ -4,10 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
-	"time"
-
-	"github.com/google/uuid"
 )
 
 type Order struct {
@@ -36,16 +32,6 @@ type Order2 struct {
 	Timestamp int    `json:"timestamp"`
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	var req Order2
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid JSON: %+v", err), http.StatusBadRequest)
-		return
-	}
-	fmt.Fprintf(w, "Got order: %+v", req)
-}
-
 func OrderRequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
@@ -61,10 +47,6 @@ func OrderRequestHandler(w http.ResponseWriter, r *http.Request) {
 		errStr := fmt.Sprintf("Invalid JSON: %+v", err)
 		http.Error(w, errStr, http.StatusBadRequest)
 	}
-
-	id, _ := strconv.Atoi(uuid.New().String())
-	req.ID = id
-	req.Timestamp = time.Now().UnixMilli()
 
 	orderBook.AddOrder(req)
 
