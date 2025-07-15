@@ -8,28 +8,16 @@ import (
 
 type OrderBook struct {
 	lastUpdateID int
-	Bids         []Order
-	Asks         []Order
+	Bids         map[float64]float64
+	Asks         map[float64]float64
 	mu           sync.RWMutex
 }
 
 func NewOrderBook() *OrderBook {
 	return &OrderBook{
 		lastUpdateID: 1027024,
-		Bids: []Order{
-			{
-				Price:    4.00000000,
-				Quantity: 431.00000000,
-				Side:     Buy,
-			},
-		},
-		Asks: []Order{
-			{
-				Price:    4.00000200,
-				Quantity: 12.00000000,
-				Side:     Sell,
-			},
-		},
+		Bids:         make(map[float64]float64),
+		Asks:         make(map[float64]float64),
 	}
 }
 
@@ -38,51 +26,82 @@ func (ob *OrderBook) AddOrder(order Order) {
 	defer ob.mu.Unlock()
 
 	if order.Side == Buy {
-		ob.Bids = append(ob.Bids, order)
-		sort.SliceStable(ob.Bids, func(i, j int) bool {
-			if ob.Bids[i].Price == ob.Bids[j].Price {
-				return ob.Bids[i].Timestamp < ob.Bids[j].Timestamp
-			}
-			return ob.Bids[i].Price > ob.Bids[j].Price
-		})
+		ob.addBuy(order)
 	} else {
-		ob.Asks = append(ob.Asks, order)
-		sort.SliceStable(ob.Asks, func(i, j int) bool {
-			if ob.Asks[i].Price == ob.Asks[j].Price {
-				return ob.Asks[i].Timestamp < ob.Asks[j].Timestamp
-			}
-			return ob.Asks[i].Price < ob.Asks[j].Price
-		})
+		ob.addSell(order)
 	}
 
-	ob.lastUpdateID = order.ID
 }
 
-func (ob *OrderBook) GetBids() [][]string {
-	ob.mu.RLock()
-	defer ob.mu.RUnlock()
-
-	var bids [][]string
-	for _, v := range ob.Bids {
-
-		price := strconv.FormatFloat(v.Price, 'E', -1, 64)
-		quantity := strconv.FormatFloat(v.Quantity, 'E', -1, 64)
-		bids = append(bids, []string{price, quantity})
+func (ob *OrderBook) addSell(order Order) {
+	if order.Quantity == 0 {
+		delete(ob.Asks, order.Price)
+	} else {
+		ob.Bids[order.Price] = order.Quantity
 	}
 
+	ob.lastUpdateID++
+}
+
+func (ob *OrderBook) addBuy(order Order) {
+	if order.Quantity == 0 {
+		delete(ob.Bids, order.Price)
+	} else {
+		ob.Bids[order.Price] = order.Quantity
+	}
+
+	ob.lastUpdateID++
+}
+
+func (ob *OrderBook) GetDepth(limit int) *DepthResponse {
+	// ob.mu.Lock()
+	// defer ob.mu.Unlock()
+
+	return &DepthResponse{
+		LastUpdateID: ob.lastUpdateID,
+		Asks:         ob.getBids(limit),
+		Bids:         ob.GetAsks(limit),
+	}
+}
+
+func (ob *OrderBook) getBids(limit int) [][2]string {
+	// Convert and sort Bids (desc)
+	bidPrices := make([]float64, 0, len(ob.Bids))
+	for price := range ob.Bids {
+		bidPrices = append(bidPrices, price)
+	}
+	sort.Sort(sort.Reverse(sort.Float64Slice(bidPrices)))
+
+	bids := make([][2]string, 0, limit)
+	for _, price := range bidPrices {
+		bids = append(bids, [2]string{
+			strconv.FormatFloat(price, 'f', 8, 64),
+			strconv.FormatFloat(ob.Bids[price], 'f', 8, 64),
+		})
+		if len(bids) >= limit {
+			break
+		}
+	}
 	return bids
 }
 
-func (ob *OrderBook) GetAsks() [][]string {
-	ob.mu.RLock()
-	defer ob.mu.RUnlock()
-
-	var asks [][]string
-	for _, v := range ob.Asks {
-		price := strconv.FormatFloat(v.Price, 'E', -1, 64)
-		quantity := strconv.FormatFloat(v.Quantity, 'E', -1, 64)
-		asks = append(asks, []string{price, quantity})
+func (ob *OrderBook) GetAsks(limit int) [][2]string {
+	// Convert and sort Bids (desc)
+	askPrices := make([]float64, 0, len(ob.Asks))
+	for price := range ob.Asks {
+		askPrices = append(askPrices, price)
 	}
+	sort.Sort(sort.Reverse(sort.Float64Slice(askPrices)))
 
+	asks := make([][2]string, 0, limit)
+	for _, price := range askPrices {
+		asks = append(asks, [2]string{
+			strconv.FormatFloat(price, 'f', 8, 64),
+			strconv.FormatFloat(ob.Bids[price], 'f', 8, 64),
+		})
+		if len(asks) >= limit {
+			break
+		}
+	}
 	return asks
 }

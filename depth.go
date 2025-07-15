@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
+	"strconv"
 )
 
 type DepthResponse struct {
-	LastUpdateID int        `json:"lastUpdateId"`
-	Bids         [][]string `json:"bids"`
-	Asks         [][]string `json:"asks"`
+	LastUpdateID int         `json:"lastUpdateId"`
+	Bids         [][2]string `json:"bids"`
+	Asks         [][2]string `json:"asks"`
 }
 
 func DepthRequestHandler(w http.ResponseWriter, r *http.Request) {
@@ -20,17 +20,15 @@ func DepthRequestHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("symbol is:", q.Get("symbol"))
+	fmt.Println("symbol is:", r.URL.Query().Get("symbol"))
 
-	depthResponse := &DepthResponse{
-		LastUpdateID: orderBook.lastUpdateID,
-		Bids:         orderBook.GetBids(),
-		Asks:         orderBook.GetAsks(),
+	limitStr := r.URL.Query().Get("limit")
+	limit := 100
+	if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+		limit = l
 	}
+
+	depthResponse := orderBook.GetDepth(limit)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(depthResponse)
