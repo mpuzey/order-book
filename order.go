@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -20,12 +21,29 @@ type Order struct {
 type OrderSide string
 
 const (
-	Buy  OrderSide = "BUY"
-	Sell OrderSide = "SELL"
+	Buy OrderSide = "BUY"
 )
 
 type OrderResponse struct {
 	OrderID int `json:"orderId"`
+}
+
+type Order2 struct {
+	ID        int    `json:"id"`
+	Price     string `json:"price"`
+	Quantity  string `json:"quantity"`
+	Side      string `json:"side"`
+	Timestamp int    `json:"timestamp"`
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	var req Order2
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid JSON: %+v", err), http.StatusBadRequest)
+		return
+	}
+	fmt.Fprintf(w, "Got order: %+v", req)
 }
 
 func OrderRequestHandler(w http.ResponseWriter, r *http.Request) {
@@ -34,10 +52,14 @@ func OrderRequestHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid Method", http.StatusMethodNotAllowed)
 	}
 
+	// body, _ := io.ReadAll(r.Body)
+	// fmt.Println("Raw body:", string(body))
+
+	decoder := json.NewDecoder(r.Body)
 	var req Order
-	body := json.NewDecoder(r.Body)
-	if err := body.Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	if err := decoder.Decode(&req); err != nil {
+		errStr := fmt.Sprintf("Invalid JSON: %+v", err)
+		http.Error(w, errStr, http.StatusBadRequest)
 	}
 
 	id, _ := strconv.Atoi(uuid.New().String())

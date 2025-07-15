@@ -37,7 +37,7 @@ func (ob *OrderBook) addSell(order Order) {
 	if order.Quantity == 0 {
 		delete(ob.Asks, order.Price)
 	} else {
-		ob.Bids[order.Price] = order.Quantity
+		ob.Asks[order.Price] += order.Quantity
 	}
 
 	ob.lastUpdateID++
@@ -47,7 +47,7 @@ func (ob *OrderBook) addBuy(order Order) {
 	if order.Quantity == 0 {
 		delete(ob.Bids, order.Price)
 	} else {
-		ob.Bids[order.Price] = order.Quantity
+		ob.Bids[order.Price] += order.Quantity
 	}
 
 	ob.lastUpdateID++
@@ -59,8 +59,8 @@ func (ob *OrderBook) GetDepth(limit int) *DepthResponse {
 
 	return &DepthResponse{
 		LastUpdateID: ob.lastUpdateID,
-		Asks:         ob.getBids(limit),
-		Bids:         ob.GetAsks(limit),
+		Asks:         ob.GetAsks(limit),
+		Bids:         ob.getBids(limit),
 	}
 }
 
@@ -97,7 +97,7 @@ func (ob *OrderBook) GetAsks(limit int) [][2]string {
 	for _, price := range askPrices {
 		asks = append(asks, [2]string{
 			strconv.FormatFloat(price, 'f', 8, 64),
-			strconv.FormatFloat(ob.Bids[price], 'f', 8, 64),
+			strconv.FormatFloat(ob.Asks[price], 'f', 8, 64),
 		})
 		if len(asks) >= limit {
 			break
